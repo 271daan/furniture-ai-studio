@@ -66,7 +66,7 @@ export function applyRulesToPlan(plan: Plan | null, rules: string, product?: Pro
     ...plan,
     cuts: plan.cuts.map(cut => {
       const oldRuleText = cut.generatedRuleText || '';
-      const oldBody = cut.prompt.replace(/\\n?\\[공통 지침\\][\\s\\S]*$/, '').trimEnd();
+      const oldBody = cut.prompt.replace(/\n?\[공통 지침\][\s\S]*$/, '').trimEnd();
       const clean = oldRuleText ? oldBody.replace(oldRuleText, '').trimEnd() : oldBody;
       // Preserve hand-edited copy in existing projects. For demo-generated copy,
       // recompose the scene from its structured fields rather than appending rules.
