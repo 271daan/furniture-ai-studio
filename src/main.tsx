@@ -1,12 +1,12 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { ArrowRight, Check, ChevronDown, Clipboard, Cloud, FileImage, FolderOpen, ImagePlus, Layers3, Lightbulb, LoaderCircle, Plus, Save, Settings2, Sparkles, Trash2, WandSparkles, X } from 'lucide-react';
-import { createDemoPlan } from './planner';
-import { defaultProduct, defaultRules, type Plan, type Product, type Project } from './types';
-import { getProjects, readPhoto, removeProject, saveProject } from './storage';
+import { applyRulesToPlan, createDemoPlan } from './planner';
+import { defaultProduct, type Plan, type Product, type Project } from './types';
+import { getCommonRules, getProjects, readPhoto, removeProject, saveCommonRules, saveProject } from './storage';
 import './style.css';
 
-const freshProject = (): Project => ({ id: crypto.randomUUID(), updatedAt: new Date().toISOString(), product: { ...defaultProduct }, photos: [], commonRules: defaultRules, plan: null });
+const freshProject = (): Project => ({ id: crypto.randomUUID(), updatedAt: new Date().toISOString(), product: { ...defaultProduct }, photos: [], commonRules: getCommonRules(), plan: null });
 const dateLabel = (date: string) => new Intl.DateTimeFormat('ko-KR', { month: 'short', day: 'numeric' }).format(new Date(date));
 
 function App() {
@@ -43,13 +43,14 @@ function App() {
     } catch { setStatus('사진을 읽지 못했습니다. 다시 시도하세요.'); }
   }
 
-  async function save() {
+  async function save(rulesChanged = false) {
     try {
-      const next = { ...project, updatedAt: new Date().toISOString() };
+      const next = { ...project, plan: applyRulesToPlan(project.plan, project.commonRules), updatedAt: new Date().toISOString() };
+      saveCommonRules(next.commonRules);
       await saveProject(next);
       setProject(next);
       setProjects(current => [next, ...current.filter(item => item.id !== next.id)]);
-      setStatus('이 브라우저에 프로젝트를 저장했습니다.');
+      setStatus(rulesChanged ? '공통 지침을 저장하고 현재 6컷 프롬프트에 반영했습니다.' : '이 브라우저에 프로젝트를 저장했습니다.');
     } catch { setStatus('저장에 실패했습니다. 브라우저의 저장 공간을 확인하세요.'); }
   }
 
@@ -103,8 +104,8 @@ function App() {
     </aside>
 
     <main className="main">
-      <header className="topbar"><div className="breadcrumb">WORKSPACE <span>/</span> <b>{activeTab === 'plan' ? '스튜디오' : '공통 지침'}</b></div><div className="top-actions"><span className={aiAvailable ? 'api-pill online' : 'api-pill'}><i/> {aiAvailable ? 'AI 연결됨' : '데모 모드'}</span><button className="top-save" onClick={save}><Save size={16}/> 프로젝트 저장</button></div></header>
-      {activeTab === 'settings' ? <section className="settings-page"><div className="eyebrow">GLOBAL GUIDELINES <span/></div><h1>공통 이미지 생성 지침</h1><p className="page-sub">모든 컷의 생성 프롬프트에 자동으로 포함되는 기준입니다.</p><div className="settings-card"><div className="card-top"><div className="icon-square"><Settings2 size={19}/></div><div><h2>브랜드 이미지 가이드</h2><p>제품의 일관성과 공간 연출 스타일을 설정하세요.</p></div></div><textarea className="rules-input" value={project.commonRules} onChange={event => setProject(current => ({ ...current, commonRules: event.target.value }))} rows={11}/><p className="helper">지침을 변경한 뒤 기획을 다시 실행하면 새 프롬프트에 반영됩니다.</p></div><button className="primary-button settings-save" onClick={save}><Save size={17}/> 지침 저장</button></section> : <>
+      <header className="topbar"><div className="breadcrumb">WORKSPACE <span>/</span> <b>{activeTab === 'plan' ? '스튜디오' : '공통 지침'}</b></div><div className="top-actions"><span className={aiAvailable ? 'api-pill online' : 'api-pill'}><i/> {aiAvailable ? 'AI 연결됨' : '데모 모드'}</span><button className="top-save" onClick={() => save()}><Save size={16}/> 프로젝트 저장</button></div></header>
+      {activeTab === 'settings' ? <section className="settings-page"><div className="eyebrow">GLOBAL GUIDELINES <span/></div><h1>공통 이미지 생성 지침</h1><p className="page-sub">모든 컷의 생성 프롬프트에 자동으로 포함되는 기준입니다.</p><div className="settings-card"><div className="card-top"><div className="icon-square"><Settings2 size={19}/></div><div><h2>브랜드 이미지 가이드</h2><p>제품의 일관성과 공간 연출 스타일을 설정하세요.</p></div></div><textarea className="rules-input" value={project.commonRules} onChange={event => setProject(current => ({ ...current, commonRules: event.target.value }))} rows={11}/><p className="helper">저장하면 현재 6컷 프롬프트에 바로 반영되고, 새 프로젝트에도 적용됩니다.</p></div><button className="primary-button settings-save" onClick={() => save(true)}><Save size={17}/> 지침 저장 및 반영</button></section> : <>
       <div className="page-heading"><div className="eyebrow">CREATE YOUR STORY <span/></div><h1>공간의 이야기를 설계하세요<span className="heading-dot">.</span></h1><p className="page-sub">제품 사진과 정보를 등록하면 상세페이지를 위한 6컷 스토리와 프롬프트를 만듭니다.</p></div>
       <div className="workspace-grid">
         <div className="input-column">
@@ -116,7 +117,7 @@ function App() {
       </div></>}
     </main>
     {status && <div className="toast" role="status"><span>{status}</span><button aria-label="알림 닫기" onClick={() => setStatus('')}><X size={15}/></button></div>}
-    {showProjects && <div className="modal-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) setShowProjects(false); }}><div className="project-modal" role="dialog" aria-modal="true" aria-label="저장된 프로젝트"><div className="modal-header"><div><span>YOUR WORK</span><h2>저장된 프로젝트</h2></div><button onClick={() => setShowProjects(false)} aria-label="닫기"><X size={20}/></button></div><button className="new-project" onClick={() => { setProject(freshProject()); setSelectedCut(1); setActiveTab('plan'); setShowProjects(false); setStatus('새 프로젝트를 시작했습니다.'); }}><Plus size={18}/> 새 프로젝트 시작 <ArrowRight size={16}/></button><div className="saved-list">{projects.length ? projects.map(item => <div className="saved-project" key={item.id}><div className="saved-icon"><FileImage size={19}/></div><div><strong>{item.product.name || '이름 없는 프로젝트'}</strong><span>{dateLabel(item.updatedAt)} · 사진 {item.photos.length}장 · {item.plan ? item.plan.source === 'ai' ? 'AI 결과' : '데모 결과' : '기획 전'}</span></div><button className="open-button" onClick={() => { setProject(item); setSelectedCut(1); setActiveTab('plan'); setShowProjects(false); setStatus('프로젝트를 불러왔습니다.'); }}>열기</button><button className="delete-button" aria-label={`${item.product.name} 삭제`} onClick={() => { if (window.confirm('이 프로젝트를 삭제할까요?')) deleteSaved(item.id); }}><Trash2 size={16}/></button></div>) : <div className="no-saved">저장된 프로젝트가 없습니다.</div>}</div><p className="modal-note"><Cloud size={14}/> 프로젝트는 현재 브라우저에만 저장됩니다.</p></div></div>}
+    {showProjects && <div className="modal-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) setShowProjects(false); }}><div className="project-modal" role="dialog" aria-modal="true" aria-label="저장된 프로젝트"><div className="modal-header"><div><span>YOUR WORK</span><h2>저장된 프로젝트</h2></div><button onClick={() => setShowProjects(false)} aria-label="닫기"><X size={20}/></button></div><button className="new-project" onClick={() => { setProject(freshProject()); setSelectedCut(1); setActiveTab('plan'); setShowProjects(false); setStatus('새 프로젝트를 시작했습니다.'); }}><Plus size={18}/> 새 프로젝트 시작 <ArrowRight size={16}/></button><div className="saved-list">{projects.length ? projects.map(item => <div className="saved-project" key={item.id}><div className="saved-icon"><FileImage size={19}/></div><div><strong>{item.product.name || '이름 없는 프로젝트'}</strong><span>{dateLabel(item.updatedAt)} · 사진 {item.photos.length}장 · {item.plan ? item.plan.source === 'ai' ? 'AI 결과' : '데모 결과' : '기획 전'}</span></div><button className="open-button" onClick={() => { setProject({ ...item, commonRules: getCommonRules(), plan: applyRulesToPlan(item.plan, getCommonRules()) }); setSelectedCut(1); setActiveTab('plan'); setShowProjects(false); setStatus('프로젝트를 불러왔습니다.'); }}>열기</button><button className="delete-button" aria-label={`${item.product.name} 삭제`} onClick={() => { if (window.confirm('이 프로젝트를 삭제할까요?')) deleteSaved(item.id); }}><Trash2 size={16}/></button></div>) : <div className="no-saved">저장된 프로젝트가 없습니다.</div>}</div><p className="modal-note"><Cloud size={14}/> 프로젝트는 현재 브라우저에만 저장됩니다.</p></div></div>}
   </div>;
 }
 
