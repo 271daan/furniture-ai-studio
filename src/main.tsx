@@ -45,7 +45,7 @@ function App() {
 
   async function save(rulesChanged = false) {
     try {
-      const next = { ...project, plan: applyRulesToPlan(project.plan, project.commonRules), updatedAt: new Date().toISOString() };
+      const next = { ...project, plan: applyRulesToPlan(project.plan, project.commonRules, project.product), updatedAt: new Date().toISOString() };
       saveCommonRules(next.commonRules);
       await saveProject(next);
       setProject(next);
