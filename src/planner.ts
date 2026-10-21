@@ -28,49 +28,52 @@ export function dimensions(product: Product): string {
   return values.every(Boolean) ? `${values.join(' × ')} mm (가로 × 깊이 × 높이)` : '입력된 실제 치수';
 }
 
-function interpretRule(line: string): string {
-  const rule = line.replace(/^[-•\d.)\s]+/, '').trim();
-  if (!rule) return '';
-  if (/제품.*(형태|비율).*(소재|색상)|제품.*(소재|색상).*(형태|비율)/.test(rule)) return '제품 고유의 실루엣과 표면 마감을 촬영 원본처럼 정확하게 표현한다.';
-  if (/원본.*(촬영 각도|각도)/.test(rule)) return '참조 사진의 시점과 제품이 향한 방향을 따른다.';
-  if (/실제 크기|주변 가구.*비율/.test(rule)) return '주변 가구와의 크기 관계를 실제 치수에 맞춘다.';
-  if (/실사.*화보|브랜드.*화보/.test(rule)) return '실제 브랜드 인테리어 화보와 같은 자연스러운 깊이감을 준다.';
-  if (/차갑|중립|저채도/.test(rule)) return '색조는 차분한 저채도 계열로 정리한다.';
-  if (/노란빛|붉은빛|웜톤/.test(rule)) return '조명에서 따뜻한 황색과 적색 기운을 억제한다.';
-  if (/화병|화분|천장 조명/.test(rule)) return '시선을 빼앗는 장식물과 큰 천장 조명은 프레임에서 제외한다.';
-  if (/콜라주|분할컷|하나의 공간/.test(rule)) return '한 프레임에 하나의 공간 장면만 담는다.';
-
-  const lighting = rule.match(/^(.+?)\s*조명만\s*(?:사용|적용)/);
-  if (lighting) return `조명은 ${lighting[1].trim()} 계열로 제한하여 공간의 분위기를 만든다.`;
-  const excluded = rule.match(/^(.+?)\s*(?:금지|사용하지 않는다|배치하지 않는다|제외)/);
-  if (excluded) return `${excluded[1].trim()} 요소는 화면에서 배제한다.`;
-  const only = rule.match(/^(.+?)\s*만\s*(?:사용|적용)/);
-  if (only) return `${only[1].trim()}을 중심으로 장면을 구성한다.`;
-  const words = rule.replace(/[.。]+$/, '').split(/\s+/);
-  return words.length > 1 ? `${words[0]}의 연출은 ${words.slice(1).join(' ')}에 맞춰 조정한다.` : `${rule} 중심의 연출로 완성한다.`;
+// Rules remain separate from the visible prompt. Demo mode recognizes only the
+// supported visual categories; arbitrary natural-language rules require the AI mode.
+function sceneDirection(rules: string): string {
+  const r = rules.toLowerCase();
+  const notes: string[] = [];
+  if (/차갑|중립|저채도|페일그레이|웜라이트그레이|라이트토프/.test(r)) notes.push('차분한 중성 계열의 벽과 바닥');
+  if (/자연광|왼쪽.*빛|좌측.*빛/.test(r)) notes.push('왼쪽에서 들어오는 부드러운 자연광');
+  if (/노란빛|붉은빛|웜톤/.test(r)) notes.push('색온도가 치우치지 않은 담백한 조명');
+  if (/화병|화분|대형.*조명|천장 조명/.test(r)) notes.push('큰 장식물 없이 정돈된 가구 배치');
+  if (/실제 크기|주변 가구.*비율/.test(r)) notes.push('실물 치수에 맞춘 주변 가구와의 크기 관계');
+  if (/원본.*각도|촬영 각도/.test(r)) notes.push('참조 사진과 동일한 제품 방향과 시점');
+  if (/콜라주|분할컷|하나의 공간/.test(r)) notes.push('하나의 연속된 실내 장면');
+  if (/형태|소재|색상|비율/.test(r)) notes.push('원본과 동일한 제품 구조와 표면 질감');
+  return notes.join(', ');
 }
 
 export function buildRuleNarrative(rules: string): string {
-  return [...new Set(rules.split(/[\n.!?]+/).map(interpretRule).filter(Boolean))].join(' ');
+  return sceneDirection(rules);
+}
+
+function scenePrompt(product: Product, rules: string, cut: Pick<Cut, 'title' | 'space' | 'composition' | 'purpose'>): string {
+  const direction = sceneDirection(rules);
+  const surroundings = direction ? ` ${direction}을 바탕으로 공간을 구성한다.` : '';
+  return `[제품] ${product.name || '가구 제품'} / 크기 ${dimensions(product)} / 소재 ${product.material || '원본 참조'} / 색상 ${product.color || '원본 참조'} / 특징 ${product.features || '원본 참조'}.
+[장면] ${cut.space}에서 ${cut.title}을 위한 ${cut.purpose} 장면. ${cut.composition}로 촬영한다.${surroundings} 업로드한 제품 원본을 참조하고 해당 제품의 방향과 비율을 유지한다.`;
 }
 
 export function buildPrompt(product: Product, rules: string, cut: Pick<Cut, 'title' | 'space' | 'composition' | 'purpose'>): string {
-  const scene = `[제품] ${product.name || '가구 제품'} / 크기 ${dimensions(product)} / 소재 ${product.material || '원본 참조'} / 색상 ${product.color || '원본 참조'} / 특징 ${product.features || '원본 참조'}.
-[장면] ${cut.space}. ${cut.title}: ${cut.purpose}. ${cut.composition}로 촬영한다. 업로드한 제품 사진을 제품의 정확한 참조 이미지로 사용한다. 기준 사진에서 보이는 제품의 면과 촬영 방향을 유지한다.`;
-  const narrative = buildRuleNarrative(rules);
-  return narrative ? `${scene}\n${narrative}` : scene;
+  return scenePrompt(product, rules, cut);
 }
 
-export function applyRulesToPlan(plan: Plan | null, rules: string): Plan | null {
+export function applyRulesToPlan(plan: Plan | null, rules: string, product?: Product): Plan | null {
   if (!plan) return null;
-  const narrative = buildRuleNarrative(rules);
+  // Never paste the settings text (or a paraphrased block) below user-visible prompts.
   return {
     ...plan,
     cuts: plan.cuts.map(cut => {
-      if (cut.generatedRuleText === narrative && !cut.prompt.includes('[공통 지침]')) return cut;
-      let body = cut.prompt.replace(/\n?\[공통 지침\][\s\S]*$/, '').trimEnd();
-      if (cut.generatedRuleText) body = body.replace(cut.generatedRuleText, '').trimEnd();
-      return { ...cut, generatedRuleText: narrative, prompt: narrative ? `${body}\n${narrative}` : body };
+      const oldRuleText = cut.generatedRuleText || '';
+      const oldBody = cut.prompt.replace(/\\n?\\[공통 지침\\][\\s\\S]*$/, '').trimEnd();
+      const clean = oldRuleText ? oldBody.replace(oldRuleText, '').trimEnd() : oldBody;
+      // Preserve hand-edited copy in existing projects. For demo-generated copy,
+      // recompose the scene from its structured fields rather than appending rules.
+      const isGenerated = oldBody.startsWith('[제품]') && oldBody.includes('[장면]') &&
+        (oldRuleText ? oldBody.endsWith(oldRuleText) : !oldBody.includes('[공통 지침]'));
+      const prompt = isGenerated && product ? scenePrompt(product, rules, cut) : clean;
+      return { ...cut, generatedRuleText: '', prompt };
     }),
   };
 }
@@ -79,7 +82,7 @@ export function createDemoPlan(product: Product, photoCount: number, rules: stri
   const cuts: Cut[] = shotTemplates.map(([title, space, composition, purpose], index) => ({
     id: index + 1, title, space, composition, purpose,
     prompt: buildPrompt(product, rules, { title, space, composition, purpose }),
-    generatedRuleText: buildRuleNarrative(rules),
+    generatedRuleText: '',
   }));
   return {
     source: 'demo',
