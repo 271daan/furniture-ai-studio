@@ -67,7 +67,7 @@ export function applyRulesToPlan(plan: Plan | null, rules: string, product?: Pro
       // Every legacy demo-generated prompt is rebuilt from structured CUT data.
       // Old saved prompts may contain an entire common-guidelines document;
       // removing only a header is not enough.
-      if (plan.source === 'demo' && product && cut.prompt.trimStart().startsWith('[제품]')) {
+      if (plan.source === 'demo' && product && !cut.promptCustomized && cut.prompt.trimStart().startsWith('[제품]')) {
         return { ...cut, prompt: scenePrompt(product, rules, cut), generatedRuleText: '' };
       }
       let clean = cut.prompt.replace(/\n?\[공통 지침\][\s\S]*$/, '').trimEnd();
