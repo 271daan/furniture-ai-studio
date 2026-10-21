@@ -3,7 +3,7 @@ import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createServer as createViteServer } from 'vite';
-import { buildPrompt } from '../src/planner';
+import { buildPrompt, buildRuleNarrative } from '../src/planner';
 import type { Cut, Photo, Plan, Product, Recommendation } from '../src/types';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -48,9 +48,9 @@ app.post('/api/analyze', async (req, res) => {
         response_format: { type: 'json_object' },
         temperature: 0.4,
         messages: [
-          { role: 'system', content: `당신은 가구 브랜드의 상세페이지 아트 디렉터입니다. 사용자가 제공한 사진을 실제로 보고 보이는 형태, 소재, 색상, 촬영 방향을 조심스럽게 분석하세요. 사진에서 보이지 않는 사실은 단정하지 마세요. 입력한 크기(mm)를 장면의 실제 비율에 반영하세요. 한국어 JSON 객체만 반환하세요. 필드: analysis(문장), angles(사진별 관찰 문장 배열), spaces(정확히 3개의 {title,detail}), cameras(정확히 5개의 {title,detail}), cuts(정확히 6개의 {title,space,composition,purpose}). 각 컷은 서로 다른 역할이며, 기준 사진의 관찰 각도를 재현할 수 있는 구도를 사용하세요. 이미지 생성 결과를 만들었다고 주장하지 마세요.` },
+          { role: 'system', content: `당신은 가구 브랜드의 상세페이지 아트 디렉터입니다. 사용자가 제공한 사진을 실제로 보고 보이는 형태, 소재, 색상, 촬영 방향을 조심스럽게 분석하세요. 사진에서 보이지 않는 사실은 단정하지 마세요. 입력한 크기(mm)를 장면의 실제 비율에 반영하세요. 공통 지침은 장면 선택의 내부 기준으로 활용하되 원문을 결과에 복사하지 마세요. 한국어 JSON 객체만 반환하세요. 필드: analysis(문장), angles(사진별 관찰 문장 배열), spaces(정확히 3개의 {title,detail}), cameras(정확히 5개의 {title,detail}), cuts(정확히 6개의 {title,space,composition,purpose}). 각 컷은 서로 다른 역할이며, 기준 사진의 관찰 각도를 재현할 수 있는 구도를 사용하세요. 이미지 생성 결과를 만들었다고 주장하지 마세요.` },
           { role: 'user', content: [
-            { type: 'text', text: `제품 정보: ${JSON.stringify(product)}. 사진은 업로드 순서대로 ${photos.length}장입니다. 이미지별 보이는 촬영 방향을 구분해서 적어주세요.` },
+            { type: 'text', text: `제품 정보: ${JSON.stringify(product)}. 공통 연출 지침: ${commonRules}. 사진은 업로드 순서대로 ${photos.length}장입니다. 이미지별 보이는 촬영 방향을 구분해서 적어주세요.` },
             ...photos.map(photo => ({ type: 'image_url', image_url: { url: photo.dataUrl, detail: 'high' } })),
           ] },
         ],
@@ -68,7 +68,7 @@ app.post('/api/analyze', async (req, res) => {
     const cuts: Cut[] = raw.cuts.map((item, index) => {
       const title = asText(item?.title), space = asText(item?.space), composition = asText(item?.composition), purpose = asText(item?.purpose);
       if (!title || !space || !composition || !purpose) throw new Error('컷 기획 형식이 올바르지 않습니다.');
-      return { id: index + 1, title, space, composition, purpose, prompt: buildPrompt(product, commonRules, { title, space, composition, purpose }) };
+      return { id: index + 1, title, space, composition, purpose, prompt: buildPrompt(product, commonRules, { title, space, composition, purpose }), generatedRuleText: buildRuleNarrative(commonRules) };
     });
     const plan: Plan = {
       source: 'ai', analysis: asText(raw.analysis), angles: raw.angles.map(asText).filter(Boolean),

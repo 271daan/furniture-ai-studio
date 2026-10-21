@@ -10,7 +10,7 @@ export type Product = {
 
 export type Photo = { id: string; name: string; dataUrl: string };
 export type Recommendation = { title: string; detail: string };
-export type Cut = { id: number; title: string; space: string; composition: string; purpose: string; prompt: string };
+export type Cut = { id: number; title: string; space: string; composition: string; purpose: string; prompt: string; generatedRuleText?: string };
 export type Plan = {
   source: 'demo' | 'ai';
   analysis: string;
