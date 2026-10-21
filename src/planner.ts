@@ -74,7 +74,7 @@ export function applyRulesToPlan(plan: Plan | null, _rules: string, product?: Pr
         return { ...cut, prompt: scenePrompt(product, cut), generatedRuleText: '' };
       }
       // Keep manually edited prompts as authored, except an identifiable legacy appendix.
-      const prompt = cut.prompt.replace(/\\n?\\[공통 지침\\][\\s\\S]*$/, '').trimEnd();
+      const prompt = cut.prompt.replace(/\n?\[공통 지침\][\s\S]*$/, '').trimEnd();
       return { ...cut, prompt, generatedRuleText: '' };
     }),
   };
