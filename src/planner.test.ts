@@ -33,3 +33,20 @@ test('legacy exposed settings are stripped, preserving manually edited copy', ()
  const updated = applyRulesToPlan(plan, '왼쪽 자연광만 사용', product)!;
  assert.equal(updated.cuts[0].prompt, '나만의 프롬프트');
 });
+
+test('legacy demo CUT with leaked instructions is rebuilt for display', () => {
+ const product = { ...defaultProduct, name: '플로 스툴', width: '340', depth: '350', height: '560' };
+ const plan = createDemoPlan(product, 1, defaultRules);
+ plan.cuts[0].prompt += '\n[공통 지침]\\n' + defaultRules;
+ const updated = applyRulesToPlan(plan, defaultRules, product)!;
+ assert.ok(!updated.cuts[0].prompt.includes('[공통 지침]'));
+ assert.ok(!updated.cuts[0].prompt.includes(defaultRules));
+ assert.ok(updated.cuts[0].prompt.includes('플로 스툴'));
+});
+test('edited CUT survives rule updates', () => {
+ const product = { ...defaultProduct, name: '플로 스툴' };
+ const plan = createDemoPlan(product, 1, defaultRules);
+ plan.cuts[0].prompt = '직접 수정한 문구';
+ plan.cuts[0].promptCustomized = true;
+ assert.equal(applyRulesToPlan(plan, '자연광', product)!.cuts[0].prompt, '직접 수정한 문구');
+});
