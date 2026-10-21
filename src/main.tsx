@@ -22,14 +22,15 @@ function App() {
   const fileInput = React.useRef<HTMLInputElement>(null);
 
   React.useEffect(() => {
-    getProjects().then(items => setProjects(items.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)))).catch(() => setStatus('프로젝트 저장소를 열 수 없습니다. 브라우저 저장소 설정을 확인하세요.'));
+    getProjects().then(items => setProjects(items.map(item => ({ ...item, plan: applyRulesToPlan(item.plan, item.commonRules, item.product) })).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)))).catch(() => setStatus('프로젝트 저장소를 열 수 없습니다. 브라우저 저장소 설정을 확인하세요.'));
     if (import.meta.env.VITE_STATIC_DEMO !== 'true') {
       fetch('/api/status').then(response => response.json()).then(data => setAiAvailable(Boolean(data.aiAvailable))).catch(() => setAiAvailable(false));
     }
   }, []);
 
   const setField = (name: keyof Product, value: string) => setProject(current => ({ ...current, product: { ...current.product, [name]: value } }));
-  const selected = project.plan?.cuts.find(cut => cut.id === selectedCut);
+  const normalizedPlan = React.useMemo(() => applyRulesToPlan(project.plan, project.commonRules, project.product), [project.plan, project.commonRules, project.product]);
+  const selected = normalizedPlan?.cuts.find(cut => cut.id === selectedCut);
 
   async function addPhotos(files: FileList | File[]) {
     const incoming = Array.from(files);
@@ -45,7 +46,7 @@ function App() {
 
   async function save(rulesChanged = false) {
     try {
-      const next = { ...project, plan: applyRulesToPlan(project.plan, project.commonRules, project.product), updatedAt: new Date().toISOString() };
+      const next = { ...project, plan: normalizedPlan, updatedAt: new Date().toISOString() };
       saveCommonRules(next.commonRules);
       await saveProject(next);
       setProject(next);
