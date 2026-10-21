@@ -51,7 +51,7 @@ function App() {
       await saveProject(next);
       setProject(next);
       setProjects(current => [next, ...current.filter(item => item.id !== next.id)]);
-      setStatus(rulesChanged ? '공통 지침을 저장하고 현재 6컷 프롬프트에 반영했습니다.' : '이 브라우저에 프로젝트를 저장했습니다.');
+      setStatus(rulesChanged ? '공통 지침을 저장했습니다. 데모 CUT 프롬프트에는 지침 원문을 포함하지 않습니다.' : '이 브라우저에 프로젝트를 저장했습니다.');
     } catch { setStatus('저장에 실패했습니다. 브라우저의 저장 공간을 확인하세요.'); }
   }
 
@@ -101,12 +101,12 @@ function App() {
         <button className="nav-item" onClick={() => setShowProjects(true)}><FolderOpen size={18}/> 저장된 프로젝트 <span className="count">{projects.length}</span></button>
         <button className={activeTab === 'settings' ? 'nav-item active' : 'nav-item'} onClick={() => setActiveTab('settings')}><Settings2 size={18}/> 공통 지침</button>
       </nav>
-      <div className="sidebar-bottom"><div className="side-note"><span className="note-icon"><Lightbulb size={17}/></span><strong>좋은 결과를 위한 팁</strong><p>제품의 정면과 측면이 보이는 사진을 함께 등록하면 구도 분석에 도움이 됩니다.</p></div><div className="sidebar-foot">© 2026 Furniture AI Studio <span>V 1.0</span></div></div>
+      <div className="sidebar-bottom"><div className="side-note"><span className="note-icon"><Lightbulb size={17}/></span><strong>좋은 결과를 위한 팁</strong><p>제품의 정면과 측면이 보이는 사진을 함께 등록하면 구도 분석에 도움이 됩니다.</p></div><div className="sidebar-foot">© 2026 Furniture AI Studio <span>V 1.1</span></div></div>
     </aside>
 
     <main className="main">
       <header className="topbar"><div className="breadcrumb">WORKSPACE <span>/</span> <b>{activeTab === 'plan' ? '스튜디오' : '공통 지침'}</b></div><div className="top-actions"><span className={aiAvailable ? 'api-pill online' : 'api-pill'}><i/> {aiAvailable ? 'AI 연결됨' : '데모 모드'}</span><button className="top-save" onClick={() => save()}><Save size={16}/> 프로젝트 저장</button></div></header>
-      {activeTab === 'settings' ? <section className="settings-page"><div className="eyebrow">GLOBAL GUIDELINES <span/></div><h1>공통 이미지 생성 지침</h1><p className="page-sub">모든 컷의 생성 프롬프트에 자동으로 포함되는 기준입니다.</p><div className="settings-card"><div className="card-top"><div className="icon-square"><Settings2 size={19}/></div><div><h2>브랜드 이미지 가이드</h2><p>제품의 일관성과 공간 연출 스타일을 설정하세요.</p></div></div><textarea className="rules-input" value={project.commonRules} onChange={event => setProject(current => ({ ...current, commonRules: event.target.value }))} rows={11}/><p className="helper">저장하면 현재 6컷 프롬프트에 바로 반영되고, 새 프로젝트에도 적용됩니다.</p></div><button className="primary-button settings-save" onClick={() => save(true)}><Save size={17}/> 지침 저장 및 반영</button></section> : <>
+      {activeTab === 'settings' ? <section className="settings-page"><div className="eyebrow">GLOBAL GUIDELINES <span/></div><h1>공통 이미지 생성 지침</h1><p className="page-sub">실제 AI 분석 시 적용할 공통 기준입니다. 데모에서는 저장만 하며 프롬프트에 복사하지 않습니다.</p><div className="settings-card"><div className="card-top"><div className="icon-square"><Settings2 size={19}/></div><div><h2>브랜드 이미지 가이드</h2><p>제품의 일관성과 공간 연출 스타일을 설정하세요.</p></div></div><textarea className="rules-input" value={project.commonRules} onChange={event => setProject(current => ({ ...current, commonRules: event.target.value }))} rows={11}/><p className="helper">지침은 프로젝트에 저장됩니다. 실제 AI 연동 전 데모에서는 자유 형식의 지침을 해석하지 않습니다.</p></div><button className="primary-button settings-save" onClick={() => save(true)}><Save size={17}/> 지침 저장 및 반영</button></section> : <>
       <div className="page-heading"><div className="eyebrow">CREATE YOUR STORY <span/></div><h1>공간의 이야기를 설계하세요<span className="heading-dot">.</span></h1><p className="page-sub">제품 사진과 정보를 등록하면 상세페이지를 위한 6컷 스토리와 프롬프트를 만듭니다.</p></div>
       <div className="workspace-grid">
         <div className="input-column">

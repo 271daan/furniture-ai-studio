@@ -48,32 +48,34 @@ export function buildRuleNarrative(rules: string): string {
   return sceneDirection(rules);
 }
 
-function scenePrompt(product: Product, rules: string, cut: Pick<Cut, 'title' | 'space' | 'composition' | 'purpose'>): string {
-  const direction = sceneDirection(rules);
-  const surroundings = direction ? ` ${direction}을 바탕으로 공간을 구성한다.` : '';
-  return `[제품] ${product.name || '가구 제품'} / 크기 ${dimensions(product)} / 소재 ${product.material || '원본 참조'} / 색상 ${product.color || '원본 참조'} / 특징 ${product.features || '원본 참조'}.
-[장면] ${cut.space}에서 ${cut.title}을 위한 ${cut.purpose} 장면. ${cut.composition}로 촬영한다.${surroundings} 업로드한 제품 원본을 참조하고 해당 제품의 방향과 비율을 유지한다.`;
+// IMPORTANT: In demo mode, saved guidelines are configuration, never prompt text.
+// This deterministic demo does not interpret free-form guidance.
+function scenePrompt(product: Product, cut: Pick<Cut, 'title' | 'space' | 'composition' | 'purpose'>): string {
+  return `[CUT] ${cut.title}
+[제품] ${product.name || '가구 제품'} · ${dimensions(product)}
+[공간] ${cut.space}
+[연출] ${cut.purpose}
+[카메라] ${cut.composition}
+[원본 참조] 업로드된 제품 사진의 디자인, 비율과 카메라 방향을 유지하는 개별 공간 연출 이미지.`;
 }
 
-export function buildPrompt(product: Product, rules: string, cut: Pick<Cut, 'title' | 'space' | 'composition' | 'purpose'>): string {
-  return scenePrompt(product, rules, cut);
+export function buildPrompt(product: Product, _rules: string, cut: Pick<Cut, 'title' | 'space' | 'composition' | 'purpose'>): string {
+  return scenePrompt(product, cut);
 }
 
-export function applyRulesToPlan(plan: Plan | null, rules: string, product?: Product): Plan | null {
+export function applyRulesToPlan(plan: Plan | null, _rules: string, product?: Product): Plan | null {
   if (!plan) return null;
   return {
     ...plan,
     cuts: plan.cuts.map(cut => {
-      // Every legacy demo-generated prompt is rebuilt from structured CUT data.
-      // Old saved prompts may contain an entire common-guidelines document;
-      // removing only a header is not enough.
-      if (plan.source === 'demo' && product && !cut.promptCustomized && cut.prompt.trimStart().startsWith('[제품]')) {
-        return { ...cut, prompt: scenePrompt(product, rules, cut), generatedRuleText: '' };
+      // Recreate old automatically generated demo prompts instead of attempting
+      // fragile string removal; this eliminates legacy appended guideline documents.
+      if (plan.source === 'demo' && product && !cut.promptCustomized) {
+        return { ...cut, prompt: scenePrompt(product, cut), generatedRuleText: '' };
       }
-      let clean = cut.prompt.replace(/\n?\[공통 지침\][\s\S]*$/, '').trimEnd();
-      if (cut.generatedRuleText) clean = clean.replace(cut.generatedRuleText, '').trimEnd();
-      if (rules.trim() && clean.includes(rules.trim())) clean = clean.replace(rules.trim(), '').trimEnd();
-      return { ...cut, prompt: clean, generatedRuleText: '' };
+      // Keep manually edited prompts as authored, except an identifiable legacy appendix.
+      const prompt = cut.prompt.replace(/\n?\[공통 지침\][\s\S]*$/, '').trimEnd();
+      return { ...cut, prompt, generatedRuleText: '' };
     }),
   };
 }
