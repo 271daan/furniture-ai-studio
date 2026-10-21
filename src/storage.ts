@@ -1,7 +1,17 @@
-import type { Project } from './types';
+import { defaultRules, type Project } from './types';
 
 const DB_NAME = 'furniture-ai-studio';
 const STORE = 'projects';
+const RULES_KEY = 'furniture-ai-studio-common-rules';
+
+export function getCommonRules(): string {
+  try { return localStorage.getItem(RULES_KEY) ?? defaultRules; }
+  catch { return defaultRules; }
+}
+
+export function saveCommonRules(rules: string): void {
+  localStorage.setItem(RULES_KEY, rules);
+}
 
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {

@@ -34,6 +34,17 @@ export function buildPrompt(product: Product, rules: string, cut: Pick<Cut, 'tit
 [공통 지침] ${rules.trim()}`;
 }
 
+export function applyRulesToPlan(plan: Plan | null, rules: string): Plan | null {
+  if (!plan) return null;
+  return {
+    ...plan,
+    cuts: plan.cuts.map(cut => ({
+      ...cut,
+      prompt: `${cut.prompt.replace(/\n?\[공통 지침\][\s\S]*$/, '').trimEnd()}\n[공통 지침] ${rules.trim()}`,
+    })),
+  };
+}
+
 export function createDemoPlan(product: Product, photoCount: number, rules: string): Plan {
   const cuts: Cut[] = shotTemplates.map(([title, space, composition, purpose], index) => ({
     id: index + 1, title, space, composition, purpose,
