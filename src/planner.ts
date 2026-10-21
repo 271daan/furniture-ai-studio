@@ -61,19 +61,19 @@ export function buildPrompt(product: Product, rules: string, cut: Pick<Cut, 'tit
 
 export function applyRulesToPlan(plan: Plan | null, rules: string, product?: Product): Plan | null {
   if (!plan) return null;
-  // Never paste the settings text (or a paraphrased block) below user-visible prompts.
   return {
     ...plan,
     cuts: plan.cuts.map(cut => {
-      const oldRuleText = cut.generatedRuleText || '';
-      const oldBody = cut.prompt.replace(/\n?\[공통 지침\][\s\S]*$/, '').trimEnd();
-      const clean = oldRuleText ? oldBody.replace(oldRuleText, '').trimEnd() : oldBody;
-      // Preserve hand-edited copy in existing projects. For demo-generated copy,
-      // recompose the scene from its structured fields rather than appending rules.
-      const isGenerated = oldBody.startsWith('[제품]') && oldBody.includes('[장면]') &&
-        (oldRuleText ? oldBody.endsWith(oldRuleText) : !oldBody.includes('[공통 지침]'));
-      const prompt = isGenerated && product ? scenePrompt(product, rules, cut) : clean;
-      return { ...cut, generatedRuleText: '', prompt };
+      // Every legacy demo-generated prompt is rebuilt from structured CUT data.
+      // Old saved prompts may contain an entire common-guidelines document;
+      // removing only a header is not enough.
+      if (plan.source === 'demo' && product && cut.prompt.trimStart().startsWith('[제품]')) {
+        return { ...cut, prompt: scenePrompt(product, rules, cut), generatedRuleText: '' };
+      }
+      let clean = cut.prompt.replace(/\n?\[공통 지침\][\s\S]*$/, '').trimEnd();
+      if (cut.generatedRuleText) clean = clean.replace(cut.generatedRuleText, '').trimEnd();
+      if (rules.trim() && clean.includes(rules.trim())) clean = clean.replace(rules.trim(), '').trimEnd();
+      return { ...cut, prompt: clean, generatedRuleText: '' };
     }),
   };
 }
