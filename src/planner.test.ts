@@ -30,3 +30,17 @@ test('manual prompt is retained',()=>{
  plan.cuts[0].promptCustomized=true;
  assert.equal(applyRulesToPlan(plan,longRules,product)!.cuts[0].prompt,'내가 직접 수정한 프롬프트');
 });
+
+test('detailed prompts contain concrete placement, camera, light and exclusions',()=>{
+ const plan=createDemoPlan(product,2,longRules);
+ for(const cut of plan.cuts) {
+  assert.ok(cut.prompt.length > 450);
+  assert.ok(cut.prompt.includes('공간 연출:'));
+  assert.ok(cut.prompt.includes('제품과 가구의 배치:'));
+  assert.ok(cut.prompt.includes('촬영 구도:'));
+  assert.ok(cut.prompt.includes('제외 요소:'));
+  assert.ok(!cut.prompt.includes(longRules));
+ }
+ assert.ok(plan.cuts[4].prompt.includes('화장대 아래에 반쯤'));
+ assert.ok(plan.cuts[0].prompt.includes('화장대 앞'));
+});
